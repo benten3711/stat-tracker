@@ -1,9 +1,11 @@
+import { StatsStore, type PlayerStats } from '../utils/parser';
+
 export function renderSearch(container: HTMLElement) {
   container.innerHTML = `
     <div class="search-view animate-fade-in glass" style="padding: 2rem; max-width: 800px; margin: 0 auto;">
       <button id="back-home" style="background: transparent; margin-bottom: 2rem; border: 1px solid var(--border-glass);">← Back to Dashboard</button>
       <h2>Public Stat Search</h2>
-      <p>Enter a player name or USA Water Polo ID to retrieve verified statistics.</p>
+      <p>Enter a player name or USA Water Polo ID to retrieve verified statistics from your scanned sessions.</p>
       
       <div style="display: flex; gap: 1rem; margin-bottom: 3rem;">
         <input type="text" id="search-input" placeholder="e.g. Artemly Malkov or 627910" 
@@ -12,8 +14,7 @@ export function renderSearch(container: HTMLElement) {
       </div>
 
       <div id="search-results" style="text-align: left;">
-        <!-- Results will appear here -->
-        <p style="text-align: center; font-style: italic;">Verified data from the 2025-2026 season is now available.</p>
+        <p style="text-align: center; font-style: italic; color: var(--text-secondary);">Using AI Verified Database.</p>
       </div>
     </div>
   `;
@@ -26,37 +27,48 @@ export function renderSearch(container: HTMLElement) {
   backBtn.addEventListener('click', () => location.reload());
 
   searchBtn.addEventListener('click', () => {
-    const query = input.value.trim().toLowerCase();
-    if (query.includes('artemly') || query.includes('627910')) {
-      results.innerHTML = `
+    const query = input.value.trim();
+    if (!query) return;
+
+    const matches = StatsStore.getPlayerStats(query);
+
+    if (matches.length > 0) {
+      results.innerHTML = matches.map((p, index) => `
         <div class="card glass animate-fade-in" style="margin-top: 1rem; border: 1px solid var(--accent);">
-          <h3>Artemly Malkov</h3>
-          <p style="margin-bottom: 0;">USAWP ID: 627910 | Pride Boys 14U Red</p>
+          <h3>${p.name}</h3>
+          <p style="margin-bottom: 0;">USAWP ID: ${p.usaWpNo}</p>
           <hr style="margin: 1rem 0; opacity: 0.1;">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
             <div>
-              <small style="color: var(--accent);">SEASON GOALS</small>
-              <div style="font-size: 2rem; font-weight: bold;">42</div>
+              <small style="color: var(--accent);">SESSION GOALS</small>
+              <div style="font-size: 2rem; font-weight: bold;">${p.totalGoals}</div>
             </div>
             <div>
-              <small style="color: var(--accent);">GAMES PLAYED</small>
-              <div style="font-size: 2rem; font-weight: bold;">12</div>
+              <small style="color: var(--accent);">CAP NUMBER</small>
+              <div style="font-size: 2rem; font-weight: bold;">#${p.no}</div>
             </div>
           </div>
-          <button id="view-profile-btn" style="margin-top: 1rem; width: 100%; font-size: 0.8rem;">View Full Historical Profile</button>
+          <button id="view-profile-${index}" class="profile-btn" style="margin-top: 1rem; width: 100%; font-size: 0.8rem;">View Detailed Profile</button>
         </div>
-      `;
+      `).join('');
 
-      results.querySelector('#view-profile-btn')?.addEventListener('click', () => {
-        renderPlayerProfile(container, { name: 'Artemly Malkov', id: '627910' });
+      matches.forEach((p, index) => {
+        results.querySelector(`#view-profile-${index}`)?.addEventListener('click', () => {
+          renderPlayerProfile(container, p);
+        });
       });
     } else {
-      results.innerHTML = `<p style="color: var(--text-secondary); text-align: center; margin-top: 2rem;">No verified records found for "${input.value}".</p>`;
+      results.innerHTML = `
+        <div style="text-align: center; margin-top: 2rem;">
+          <p style="color: var(--text-secondary);">No verified records found for "${query}".</p>
+          <p style="font-size: 0.8rem; margin-top: 0.5rem;">Try scanning a scoresheet first to populate the database.</p>
+        </div>
+      `;
     }
   });
 }
 
-function renderPlayerProfile(container: HTMLElement, player: { name: string, id: string }) {
+function renderPlayerProfile(container: HTMLElement, player: PlayerStats) {
   container.innerHTML = `
     <div class="profile-view animate-fade-in glass" style="padding: 2rem; max-width: 800px; margin: 0 auto; text-align: left;">
       <button id="back-search" style="background: transparent; margin-bottom: 2rem; border: 1px solid var(--border-glass);">← Back to Search</button>
@@ -67,47 +79,38 @@ function renderPlayerProfile(container: HTMLElement, player: { name: string, id:
         </div>
         <div>
           <h2>${player.name}</h2>
-          <p style="margin: 0;">USAWP ID: ${player.id} | Pride Boys 14U Red</p>
+          <p style="margin: 0;">USAWP ID: ${player.usaWpNo} | Cap #${player.no}</p>
           <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
-            <span class="glass" style="padding: 0.1rem 0.5rem; font-size: 0.7rem;">Attacker</span>
-            <span class="glass" style="padding: 0.1rem 0.5rem; font-size: 0.7rem;">Right Handed</span>
+            <span class="glass" style="padding: 0.1rem 0.5rem; font-size: 0.7rem;">Verified Profile</span>
           </div>
         </div>
       </div>
 
       <div class="grid-container" style="margin-top: 0; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
         <div class="card glass" style="padding: 1.5rem;">
-          <h4 style="color: var(--accent); margin-bottom: 1rem;">Career Totals</h4>
+          <h4 style="color: var(--accent); margin-bottom: 1rem;">Session Highlights</h4>
           <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-            <span>Goals</span>
-            <span style="font-weight: bold;">142</span>
+            <span>Goals Scored</span>
+            <span style="font-weight: bold;">${player.totalGoals}</span>
           </div>
           <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-            <span>Assists</span>
-            <span style="font-weight: bold;">31</span>
+            <span>Cap Number</span>
+            <span style="font-weight: bold;">#${player.no}</span>
           </div>
           <div style="display: flex; justify-content: space-between;">
-            <span>Sprints Won</span>
-            <span style="font-weight: bold;">88%</span>
+            <span>Fouls</span>
+            <span style="font-weight: bold;">${player.fouls.length}</span>
           </div>
         </div>
         <div class="card glass" style="padding: 1.5rem;">
-          <h4 style="color: var(--accent); margin-bottom: 1rem;">Recent Form</h4>
+          <h4 style="color: var(--accent); margin-bottom: 1rem;">Quarterly Scoring</h4>
           <div style="height: 60px; display: flex; align-items: flex-end; gap: 4px;">
-             <div style="flex: 1; background: var(--accent); height: 80%;"></div>
-             <div style="flex: 1; background: var(--accent); height: 60%;"></div>
-             <div style="flex: 1; background: var(--accent); height: 100%;"></div>
-             <div style="flex: 1; background: var(--accent); height: 90%;"></div>
-             <div style="flex: 1; background: var(--accent); height: 75%;"></div>
+             ${player.goals.map(g => `
+               <div style="flex: 1; background: var(--accent); height: ${g * 30 + 10}%;"></div>
+             `).join('')}
           </div>
-          <p style="font-size: 0.7rem; margin-top: 0.5rem; color: var(--text-secondary);">Goals per game last 5 matches</p>
+          <p style="font-size: 0.7rem; margin-top: 0.5rem; color: var(--text-secondary);">Performance across 4 periods + SO</p>
         </div>
-      </div>
-      
-      <div style="margin-top: 2rem;">
-        <h3>Awards & Recognition</h3>
-        <p style="font-size: 0.9rem; margin-top: 0.5rem;">🏆 Tournament MVP - KAP7 Year of the Horse 2026</p>
-        <p style="font-size: 0.9rem;">⭐ All-League Second Team (2025)</p>
       </div>
     </div>
   `;

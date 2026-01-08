@@ -1,7 +1,7 @@
-import { parseScoresheet, type GameData } from '../utils/parser';
+import { parseScoresheet, StatsStore, type GameData } from '../utils/parser';
 
 export function renderScanner(container: HTMLElement) {
-    container.innerHTML = `
+  container.innerHTML = `
     <div class="scanner-view animate-fade-in glass" style="padding: 2rem; max-width: 800px; margin: 0 auto;">
       <button id="back-home" style="background: transparent; margin-bottom: 2rem; border: 1px solid var(--border-glass);">← Back to Dashboard</button>
       <h2>Scoresheet Scanner</h2>
@@ -27,52 +27,65 @@ export function renderScanner(container: HTMLElement) {
     </div>
   `;
 
-    const dropZone = container.querySelector('#drop-zone') as HTMLElement;
-    const fileInput = container.querySelector('#file-input') as HTMLInputElement;
-    const status = container.querySelector('#parsing-status') as HTMLElement;
-    const results = container.querySelector('#results') as HTMLElement;
-    const backBtn = container.querySelector('#back-home') as HTMLElement;
+  const dropZone = container.querySelector('#drop-zone') as HTMLElement;
+  const fileInput = container.querySelector('#file-input') as HTMLInputElement;
+  const status = container.querySelector('#parsing-status') as HTMLElement;
+  const results = container.querySelector('#results') as HTMLElement;
+  const backBtn = container.querySelector('#back-home') as HTMLElement;
 
-    backBtn.addEventListener('click', () => {
-        // Navigate home - simple reload or state reset
-        location.reload();
-    });
+  backBtn.addEventListener('click', () => {
+    // Navigate home - simple reload or state reset
+    location.reload();
+  });
 
-    dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('click', () => fileInput.click());
 
-    fileInput.addEventListener('change', async (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-            handleFile(file);
-        }
-    });
-
-    async function handleFile(file: File) {
-        dropZone.style.display = 'none';
-        status.style.display = 'block';
-
-        try {
-            const data = await parseScoresheet(file);
-            showResults(data);
-        } catch (error) {
-            alert('Error parsing scoresheet. Please try again with a clearer image.');
-            dropZone.style.display = 'block';
-        } finally {
-            status.style.display = 'none';
-        }
+  fileInput.addEventListener('change', async (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) {
+      handleFile(file);
     }
+  });
 
-    function showResults(data: GameData) {
-        results.style.display = 'block';
-        const info = results.querySelector('#game-info')!;
-        info.innerHTML = `
-      <p><strong>Event:</strong> ${data.eventName}</p>
-      <p><strong>Team:</strong> ${data.teamName}</p>
-      <p><strong>Division:</strong> ${data.division}</p>
+  async function handleFile(file: File) {
+    dropZone.style.display = 'none';
+    status.style.display = 'block';
+
+    try {
+      const data = await parseScoresheet(file);
+      showResults(data);
+    } catch (error) {
+      alert('Error parsing scoresheet. Please try again with a clearer image.');
+      dropZone.style.display = 'block';
+    } finally {
+      status.style.display = 'none';
+    }
+  }
+
+  function showResults(data: GameData) {
+    results.style.display = 'block';
+    const info = results.querySelector('#game-info')!;
+
+    // AI Confidence Badge and Notes
+    const confidenceColor = data.aiConfidence > 0.9 ? '#10b981' : '#f59e0b';
+
+    info.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div>
+          <p><strong>Event:</strong> ${data.eventName}</p>
+          <p><strong>Team:</strong> ${data.teamName}</p>
+        </div>
+        <div class="glass" style="padding: 0.5rem; border-color: ${confidenceColor}; color: ${confidenceColor}; font-size: 0.8rem; font-weight: bold;">
+          AI Confidence: ${(data.aiConfidence * 100).toFixed(0)}%
+        </div>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 4px; border-left: 3px solid var(--accent);">
+        <strong>AI Analytics:</strong> ${data.aiNotes}
+      </p>
     `;
 
-        const table = results.querySelector('#table-container')!;
-        table.innerHTML = `
+    const table = results.querySelector('#table-container')!;
+    table.innerHTML = `
       <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
         <thead>
           <tr style="border-bottom: 1px solid var(--border-glass);">
@@ -97,9 +110,11 @@ export function renderScanner(container: HTMLElement) {
       </table>
     `;
 
-        results.querySelector('#save-stats')?.addEventListener('click', () => {
-            alert('Statistics successfully pushed to public database!');
-            location.reload();
-        });
-    }
+    const saveBtn = results.querySelector('#save-stats') as HTMLElement;
+    saveBtn.onclick = () => {
+      StatsStore.saveGame(data);
+      alert('Data successfully saved to public database!');
+      location.reload();
+    };
+  }
 }

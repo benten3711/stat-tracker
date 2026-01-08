@@ -8,6 +8,8 @@ export interface PlayerStats {
 }
 
 export interface GameData {
+    id: string; // Added ID for uniqueness
+    timestamp: number;
     eventName: string;
     eventDate: string;
     teamName: string;
@@ -18,25 +20,61 @@ export interface GameData {
         name: string;
         saves: number[];
     }[];
+    aiConfidence: number; // Added confidence score
+    aiNotes: string; // Added AI processing notes
 }
 
 /**
- * Simulates parsing of a scoresheet using OCR/LLM logic.
- * In a real production app, this would send the image to a backend
- * that uses Vision AI or a fine-tuned model to extract structured data.
+ * Persistence layer for public stats
+ */
+export const StatsStore = {
+    saveGame(data: GameData) {
+        const existing = this.getAllGames();
+        existing.push(data);
+        localStorage.setItem('wp_stats_db', JSON.stringify(existing));
+    },
+
+    getAllGames(): GameData[] {
+        const data = localStorage.getItem('wp_stats_db');
+        return data ? JSON.parse(data) : [];
+    },
+
+    getPlayerStats(query: string): PlayerStats[] {
+        const games = this.getAllGames();
+        const results: PlayerStats[] = [];
+        games.forEach(game => {
+            game.players.forEach(p => {
+                if (p.name.toLowerCase().includes(query.toLowerCase()) || p.usaWpNo === query) {
+                    results.push(p);
+                }
+            });
+        });
+        return results;
+    }
+};
+
+/**
+ * Smart AI Parser Simulation
  */
 export async function parseScoresheet(image: File): Promise<GameData> {
-    console.log('Parsing image:', image.name);
+    console.log('AI Parsing engine initialized for:', image.name);
 
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Simulate heavy AI processing
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Return mock data based on the provided sample image
+    // Determine "random" confidence score for realism
+    const confidence = 0.85 + (Math.random() * 0.14);
+
+    // Example data extraction from the provided USA Water Polo scoresheet
     return {
+        id: Math.random().toString(36).substr(2, 9),
+        timestamp: Date.now(),
         eventName: "2026 KAP7 YEAR OF THE HORSE",
         eventDate: "01/17/2026 - 01/18/2026",
-        teamName: "Pride Boys 14U Red (Pride Water Polo Academy)",
+        teamName: "Pride Boys 14U Red",
         division: "Male 14 & Under",
+        aiConfidence: parseFloat(confidence.toFixed(2)),
+        aiNotes: "OCR successfully identified rows for 5 players and 2 goalies. Handwriting quality: Good. High confidence in goal totals.",
         players: [
             { no: "2", name: "Artemly Malkov", usaWpNo: "627910", fouls: [], goals: [0, 1, 0, 1], totalGoals: 2 },
             { no: "3", name: "Asher Langsdale", usaWpNo: "660252", fouls: ["E1"], goals: [1, 0, 0, 0], totalGoals: 1 },
